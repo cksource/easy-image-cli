@@ -1,4 +1,4 @@
-#easy-image cli
+##easy-image cli
     Console app for moving images from your drive into easy-image service.
 
 ### Requirements
@@ -9,10 +9,7 @@
     npm install
    
 ### Usage
-    For savig images addresses in file use stdout to file redirection.
-    
-    Example: 
-    node index.js upload -p /User/Admin/images/ -u http://example.com/upload/ -t http://example.com/token/ > result.json
+    node index.js upload -p /User/Admin/images/ -u http://example.com/upload/ -t http://example.com/token/ --output images.json
     
 ### Options
          -p, --path <filePath>            Path to file or directory

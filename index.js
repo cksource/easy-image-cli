@@ -4,23 +4,52 @@
 
 'use strict';
 
-const colors = require('colors');
+const colors = require( 'colors' );
 
-const app = require('commander');
+const app = require( 'commander' );
 
-const uploadCommand = require('./commands/upload');
+const UploadCommand = require( './commands/upload' );
 
-app.command('upload')
-    .description('Uploads files to system')
-    .option('-p, --path <filePath>', 'Path to file or directory')
-    .option('-e, --environment <environment>', 'Environment id')
-    .option('-k, --key <key>', 'Access key')
-    .option('-u, --uploadUrl <url>', 'Upload URL')
-    .option('-t, --tokenUrl <url>', 'Token URL')
-    .action(uploadCommand);
+app.command( 'upload' )
+	.description( 'Uploads files to system' )
+	.option( '-p, --path <filePath>', 'Path to file or directory' )
+	.option( '-e, --environment <environment>', 'Environment id' )
+	.option( '-k, --key <key>', 'Access key' )
+	.option( '-u, --uploadUrl <url>', 'Upload URL' )
+	.option( '-t, --tokenUrl <url>', 'Token URL' )
+	.action( async cmd => {
+		try {
+			const upload = new UploadCommand( cmd );
 
-app.action(() => console.error(
-    colors.red('----------\nEasyImage CLI\n----------\nCommand doesn\'t exist. \nCheck --help for list of commands.\n')
-));
+			const result = await upload.execute();
+			_printDataToStdOut( result );
+		} catch ( error ) {
+			_printError( error.message );
+		}
+	} );
 
-app.parse(process.argv);
+app.action( () => console.error(
+	colors.red( '----------\nEasyImage CLI\n----------\nCommand doesn\'t exist. \nCheck --help for list of commands.\n' )
+) );
+
+app.parse( process.argv );
+
+/**
+ * Prints error in console.
+ *
+ * @param {String} message
+ * @private
+ */
+function _printError( message ) {
+	process.stderr.write( colors.red( message ) + '\n' );
+}
+
+/**
+ * Prints object to stdout.
+ *
+ * @param {Object} data
+ * @private
+ */
+function _printDataToStdOut( data ) {
+	process.stdout.write( JSON.stringify( data, null, '\t' ) + '\n' );
+}

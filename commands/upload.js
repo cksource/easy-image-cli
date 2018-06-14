@@ -4,151 +4,156 @@
 
 'use strict';
 
-const fs = require('fs');
-const Path = require('path');
-const colors = require('colors');
+const fs = require( 'fs' );
+const Path = require( 'path' );
 
-const AuthHelpers = require('./../helpers/authhelpers');
-const RequestHelpers = require('./../helpers/requesthelpers');
+const AuthHelpers = require( './../helpers/authhelpers' );
+const RequestHelpers = require( './../helpers/requesthelpers' );
 
-const ALLOWED_IMAGES_FORMATS = ['png', 'jpeg', 'jpg', 'bmp', 'tiff', 'webp', 'gif'];
+const ALLOWED_IMAGES_FORMATS = [ 'png', 'jpeg', 'jpg', 'bmp', 'tiff', 'webp', 'gif' ];
 
 /**
  * CLI method which allows to upload images to easy-image
  */
 class UploadCommand {
-    /**
-     * Processes cli command.
-     *
-     * @param {CMD} cmd
-     * @return {Promise}
-     */
-    static async process(cmd) {
-        const {path, environment, key, uploadUrl, tokenUrl} = cmd;
+	/**
+	 * @param {Object} cmd
+	 * @param {String} cmd.path
+	 * @param {String} cmd.environment
+	 * @param {String} cmd.key
+	 * @param {String} cmd.uploadUrl
+	 * @param {String} cmd.tokenUrl
+	 */
+	constructor( cmd ) {
+		const { path, environment, key, uploadUrl, tokenUrl } = cmd;
 
-        if (!fs.existsSync(path)) {
-            _printError('Path doesn\'t exist.');
+		/**
+		 * @type {String}
+		 * @private
+		 */
+		this._path = path;
 
-            return null;
-        }
+		/**
+		 * @type {String}
+		 * @private
+		 */
+		this._uploadUrl = uploadUrl;
 
-        if (!uploadUrl) {
-            _printError('Upload url must be provided.');
+		/**
+		 * @type {String}
+		 * @private
+		 */
+		this._environment = environment;
 
-            return null;
-        }
+		/**
+		 * @type {String}
+		 * @private
+		 */
+		this._accessKey = key;
 
-        if (!tokenUrl && !key) {
-            _printError('Token or accessKey must be provided.');
+		/**
+		 * @type {String}
+		 * @private
+		 */
+		this._tokenUrl = tokenUrl;
 
-            return null;
-        }
+		if ( !fs.existsSync( this._path ) ) {
+			throw new Error( 'Path doesn\'t exist.' );
+		}
 
-        if (!tokenUrl && key && !environment) {
-            _printError('Environment must be provided.');
+		if ( !this._uploadUrl ) {
+			throw new Error( 'Upload url must be provided.' );
+		}
 
-            return null;
-        }
+		if ( !this._tokenUrl && !this._accessKey ) {
+			throw new Error( 'Token or accessKey must be provided.' );
+		}
 
-        const token = await AuthHelpers.createToken(environment, key, tokenUrl);
+		if ( !this._tokenUrl && key && !this._environment ) {
+			throw new Error( 'Environment must be provided.' );
+		}
+	}
 
-        let result = {};
+	/**
+	 * Generates list of files and uploads them to easy-image.
+	 *
+	 * @return {Promise.<Object>}
+	 */
+	async execute() {
+		const token = await AuthHelpers.createToken( this._environment, this._accessKey, this._tokenUrl );
 
-        if (fs.lstatSync(path).isFile()) {
-            try {
-                result[path] = await UploadCommand._processFile(path, token, uploadUrl);
-            } catch (error) {
-                _printError(`An external error occurred: ${ error.message }`);
+		let files = [];
 
-                return null;
-            }
-        }
+		if ( fs.lstatSync( this._path ).isFile() ) {
+			files.push( this._path );
+		}
 
-        if (fs.lstatSync(path).isDirectory()) {
-            try {
-                result = await UploadCommand._processDirectory(path, token, uploadUrl);
-            } catch (error) {
-                _printError(`An error occurred: ${ error.message }`);
+		if ( fs.lstatSync( this._path ).isDirectory() ) {
+			files = _scanDirectorySync( this._path );
+		}
 
-                return null;
-            }
-        }
+		files = files.filter( file => {
+			return _validateImageFormat( file );
+		} );
 
-        return _printDataToStdOut(result);
-    }
+		const result = {};
 
-    /**
-     * Sends single file to easy image.
-     *
-     * @param {String} filePath
-     * @param {String} token
-     * @param {String} uploadUrl
-     * @return {Promise.<Object>}
-     * @private
-     */
-    static async _processFile(filePath, token, uploadUrl) {
-        const {data, statusCode} = await RequestHelpers.post(uploadUrl, {fileName: filePath, authorization: token});
+		for ( const filePath of files ) {
+			result[ filePath ] = await this._upload( filePath, token, this._uploadUrl );
+		}
 
-        if (statusCode >= 400) {
-            const error = JSON.parse(data.toString());
-            throw new Error(error.message);
-        }
+		return result;
+	}
 
-        return JSON.parse(data.toString());
-    }
+	/**
+	 * Uploads file to easy image.
+	 *
+	 * @param {String} filePath
+	 * @param {String} token
+	 * @param {String} uploadUrl
+	 * @return {Promise.<Object>}
+	 * @private
+	 */
+	async _upload( filePath, token, uploadUrl ) {
+		const { data, statusCode } = await RequestHelpers.post( uploadUrl, { fileName: filePath, authorization: token } );
 
-    /**
-     * Sends all images from directory and subdirectories to easy image.
-     *
-     * @param {String} directoryPath
-     * @param {String} token
-     * @param {String} uploadUrl
-     * @return {Promise.<Object>}
-     * @private
-     */
-    static async _processDirectory(directoryPath, token, uploadUrl) {
-        const path = `${ Path.normalize(directoryPath) }/`;
+		if ( statusCode >= 400 ) {
+			const error = JSON.parse( data.toString() );
+			throw new Error( error.message );
+		}
 
-        const files = [];
-
-        _scanDirectorySync(path, files);
-
-        const result = {};
-
-        for (const filePath of files) {
-            result[filePath] = await this._processFile(filePath, token, uploadUrl);
-        }
-
-        return result;
-    }
+		return JSON.parse( data.toString() );
+	}
 }
 
-module.exports = UploadCommand.process;
+module.exports = UploadCommand;
 
 /**
  * Returns list of all images in directory and subdirectories
  *
  * @param {String} path
- * @param {Array.<String>} [fileList=[]]
+ * @param {Array.<String>} [fileList]
  * @return {Array.<String>}
  * @private
  */
-function _scanDirectorySync(path, fileList = []) {
-    for (const file of fs.readdirSync(path)) {
-        if (file.startsWith('.')) {
-            continue;
-        }
+function _scanDirectorySync( path, fileList = [] ) {
+	path = `${ Path.normalize( path ) }/`;
 
-        const resolvedFilePath = Path.join(path, file);
+	for ( const file of fs.readdirSync( path ) ) {
+		if ( file.startsWith( '.' ) ) {
+			continue;
+		}
 
-        if (fs.statSync(resolvedFilePath).isDirectory()) {
-            fileList = _scanDirectorySync(resolvedFilePath, fileList);
-        } else if (_validateImageFormat(resolvedFilePath)) {
-            fileList.push(resolvedFilePath);
-        }
-    }
+		const resolvedFilePath = Path.join( path, file );
 
-    return fileList;
+		if ( fs.statSync( resolvedFilePath ).isDirectory() ) {
+			fileList = _scanDirectorySync( resolvedFilePath, fileList );
+		} else {
+			fileList.push( resolvedFilePath );
+		}
+	}
+
+	return fileList;
 }
 
 /**
@@ -158,34 +163,8 @@ function _scanDirectorySync(path, fileList = []) {
  * @return {Boolean}
  * @private
  */
-function _validateImageFormat(imagePath) {
-    const file = Path.parse(imagePath);
+function _validateImageFormat( imagePath ) {
+	const file = Path.parse( imagePath );
 
-    if (!ALLOWED_IMAGES_FORMATS.includes(file.ext.toLowerCase().replace('.', ''))) {
-        process.stderr.write(colors.yellow(`File "${ file.base }" was skipped because format "${ file.ext }" is not supported.`));
-
-        return false;
-    }
-
-    return true;
-}
-
-/**
- * Prints object to stdout.
- *
- * @param {Object} data
- * @private
- */
-function _printDataToStdOut(data) {
-    process.stdout.write( JSON.stringify(data, null, '\t') + '\n');
-}
-
-/**
- * Prints error in console.
- *
- * @param {String} message
- * @private
- */
-function _printError(message) {
-    process.stderr.write(colors.red(message));
+	return ALLOWED_IMAGES_FORMATS.includes( file.ext.toLowerCase().replace( '.', '' ) );
 }

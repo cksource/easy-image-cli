@@ -23,7 +23,7 @@ app.command( 'upload' )
 			const upload = new UploadCommand( cmd );
 
 			const result = await upload.execute();
-			_printDataToStdOut( result );
+			_printDataToStdOut( result, '========= Addresses ========= \n' );
 		} catch ( error ) {
 			_printError( error.message );
 		}
@@ -49,8 +49,9 @@ function _printError( message ) {
  * Prints object to stdout.
  *
  * @param {Object} data
+ * @param {String} [description='']
  * @private
  */
-function _printDataToStdOut( data ) {
-	process.stdout.write( JSON.stringify( data, null, '\t' ) + '\n' );
+function _printDataToStdOut( data, description = '' ) {
+	process.stdout.write( `${colors.green( description )}${JSON.stringify( data, null, '\t' )}${'\n'}` );
 }

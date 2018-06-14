@@ -23,4 +23,6 @@
          -o, --output <path>              Path to the file where result should be saved
          -h, --help                       output usage information
          
-    Warning: tokenUrl or environment id with key must be passed.
+         
+         Warning: tokenUrl or environment id with key must be passed.
+         

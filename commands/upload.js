@@ -4,6 +4,8 @@
 
 'use strict';
 
+const CliProgress = require( 'cli-progress' );
+
 const fs = require( 'fs' );
 const Path = require( 'path' );
 
@@ -23,9 +25,10 @@ class UploadCommand {
 	 * @param {String} cmd.key
 	 * @param {String} cmd.uploadUrl
 	 * @param {String} cmd.tokenUrl
+	 * @param {String} cmd.output
 	 */
 	constructor( cmd ) {
-		const { path, environment, key, uploadUrl, tokenUrl } = cmd;
+		const { path, environment, key, uploadUrl, tokenUrl, output } = cmd;
 
 		/**
 		 * @type {String}
@@ -56,6 +59,12 @@ class UploadCommand {
 		 * @private
 		 */
 		this._tokenUrl = tokenUrl;
+
+		/**
+		 * @type {String}
+		 * @private
+		 */
+		this._output = output;
 
 		if ( !fs.existsSync( this._path ) ) {
 			throw new Error( 'Path doesn\'t exist.' );
@@ -98,8 +107,19 @@ class UploadCommand {
 
 		const result = {};
 
-		for ( const filePath of files ) {
+		const progress = new CliProgress.Bar( {}, CliProgress.Presets.shades_classic );
+
+		progress.start( files.length, 0 );
+
+		for ( let [ index, filePath ] of files.entries() ) {
 			result[ filePath ] = await this._upload( filePath, token, this._uploadUrl );
+			progress.update( index + 1 );
+		}
+
+		progress.stop();
+
+		if ( this._output ) {
+			_saveToJSONFile( result, this._output );
 		}
 
 		return result;
@@ -167,4 +187,9 @@ function _validateImageFormat( imagePath ) {
 	const file = Path.parse( imagePath );
 
 	return ALLOWED_IMAGES_FORMATS.includes( file.ext.toLowerCase().replace( '.', '' ) );
+}
+
+function _saveToJSONFile( data, filePath ) {
+	const string = JSON.stringify( data, null, '\t' );
+	fs.writeFileSync( filePath, string, 'utf8' );
 }

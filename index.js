@@ -17,6 +17,7 @@ app.command( 'upload' )
 	.option( '-k, --key <key>', 'Access key' )
 	.option( '-u, --uploadUrl <url>', 'Upload URL' )
 	.option( '-t, --tokenUrl <url>', 'Token URL' )
+	.option( '-o, --output <path>', 'Path to the file where result should be saved' )
 	.action( async cmd => {
 		try {
 			const upload = new UploadCommand( cmd );

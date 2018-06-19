@@ -7,6 +7,8 @@
   "license": "ISC",
   "author": "CKSource",
   "scripts": {},
+  "preferGlobal": true,
+  "bin": "./index.js",
   "dependencies": {
     "cli-progress": "^2.0.0",
     "colors": "^1.3.0",

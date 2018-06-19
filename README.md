@@ -7,20 +7,21 @@
     - npm@v4
     
 ### Installation
-    npm install
+    npm install easy-image-cli
    
 ### Usage
-    node index.js upload -p /User/Admin/images/ -u http://example.com/upload/ -t http://example.com/token/ --output images.json
+    easy-image-cli upload /User/Admin/images/ http://example.com/upload/ -t http://example.com/token/ --output images.json
     
 ### Options
-         -p, --path <filePath>            Path to file or directory
-         -e, --environment <environment>  Environment id
-         -k, --key <key>                  Access key
-         -u, --uploadUrl <url>            Upload URL
-         -t, --tokenUrl <url>             Token URL
-         -o, --output <path>              Path to the file where result should be saved
-         -h, --help                       output usage information
-         
+      easy-image-cli upload <filePath> <uploadUrl> [options]
+    
+      Options:
+    
+        -e, --environment <environment>  Environment id
+        -k, --key <key>                  Access key
+        -t, --tokenUrl <url>             Token URL
+        -o, --output <path>              Path to the file where result should be saved
+        -h, --help                       output usage information
+
          
          Warning: tokenUrl or environment id with key must be passed.
-         

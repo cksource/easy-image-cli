@@ -4,7 +4,7 @@
 
 'use strict';
 
-const CliProgress = require( 'cli-progress' );
+const { Bar: ProgressBar, Presets: CliProgressPresets } = require( 'cli-progress' );
 
 const fs = require( 'fs' );
 const Path = require( 'path' );
@@ -13,22 +13,23 @@ const AuthHelpers = require( './../helpers/authhelpers' );
 const RequestHelpers = require( './../helpers/requesthelpers' );
 
 const ALLOWED_IMAGES_FORMATS = [ 'png', 'jpeg', 'jpg', 'bmp', 'tiff', 'webp', 'gif' ];
+const MAX_IMAGE_SIZE = 100000000;
 
 /**
  * CLI method which allows to upload images to easy-image
  */
 class UploadCommand {
 	/**
-	 * @param {Object} cmd
-	 * @param {String} cmd.path
-	 * @param {String} cmd.environment
-	 * @param {String} cmd.key
-	 * @param {String} cmd.uploadUrl
-	 * @param {String} cmd.tokenUrl
-	 * @param {String} cmd.output
+	 * @param {String} path
+	 * @param {String} uploadUrl
+	 * @param {Object} args
+	 * @param {String} args.environment
+	 * @param {String} args.key
+	 * @param {String} args.tokenUrl
+	 * @param {String} args.output
 	 */
-	constructor( cmd ) {
-		const { path, environment, key, uploadUrl, tokenUrl, output } = cmd;
+	constructor( path, uploadUrl, args ) {
+		const { environment, key, tokenUrl, output } = args;
 
 		/**
 		 * @type {String}
@@ -66,19 +67,15 @@ class UploadCommand {
 		 */
 		this._output = output;
 
-		if ( !fs.existsSync( this._path ) ) {
-			throw new Error( 'Path doesn\'t exist.' );
-		}
-
-		if ( !this._uploadUrl ) {
-			throw new Error( 'Upload url must be provided.' );
+		if ( !!this._path && !fs.existsSync( this._path ) ) {
+			throw new Error( `Path doesn\'t exist: ${ this._path }` );
 		}
 
 		if ( !this._tokenUrl && !this._accessKey ) {
 			throw new Error( 'Token or accessKey must be provided.' );
 		}
 
-		if ( !this._tokenUrl && key && !this._environment ) {
+		if ( !this._tokenUrl && this._accessKey && !this._environment ) {
 			throw new Error( 'Environment must be provided.' );
 		}
 	}
@@ -91,6 +88,7 @@ class UploadCommand {
 	async execute() {
 		const token = await AuthHelpers.createToken( this._environment, this._accessKey, this._tokenUrl );
 
+		const errors = [];
 		let files = [];
 
 		if ( fs.lstatSync( this._path ).isFile() ) {
@@ -102,18 +100,28 @@ class UploadCommand {
 		}
 
 		files = files.filter( file => {
-			return _validateImageFormat( file );
+			if ( _validateImage( file ) ) {
+				return true;
+			} else {
+				errors.push( new Error( `"Not allowed file format or the file is too big." for file "${ file }"` ) );
+
+				return false;
+			}
 		} );
 
 		const result = {};
 
-		const progress = new CliProgress.Bar( {}, CliProgress.Presets.shades_classic );
+		const progress = new ProgressBar( {}, CliProgressPresets.shades_classic );
 
 		progress.start( files.length, 0 );
 
 		for ( let [ index, filePath ] of files.entries() ) {
-			result[ filePath ] = await this._upload( filePath, token, this._uploadUrl );
-			progress.update( index + 1 );
+			try {
+				result[ filePath ] = await this._upload( filePath, token, this._uploadUrl );
+				progress.update( index + 1 );
+			} catch ( error ) {
+				errors.push( new Error( `"${ error.message}" for file "${ filePath}"` ) )
+			}
 		}
 
 		progress.stop();
@@ -122,7 +130,7 @@ class UploadCommand {
 			_saveToJSONFile( result, this._output );
 		}
 
-		return result;
+		return { result, errors };
 	}
 
 	/**
@@ -177,14 +185,20 @@ function _scanDirectorySync( path, fileList = [] ) {
 }
 
 /**
- * Returns true if extension of file is supported by easy image and false if not.
+ * Returns true if extension of file is supported by easy image and size of the file is less or equal than limit and false if not.
  *
  * @param {String} imagePath
  * @return {Boolean}
  * @private
  */
-function _validateImageFormat( imagePath ) {
+function _validateImage( imagePath ) {
 	const file = Path.parse( imagePath );
+
+	const { size: fileSize } = fs.statSync( imagePath );
+
+	if ( fileSize > MAX_IMAGE_SIZE ) {
+		return false;
+	}
 
 	return ALLOWED_IMAGES_FORMATS.includes( file.ext.toLowerCase().replace( '.', '' ) );
 }

@@ -36,9 +36,14 @@ class AuthHelpers {
 	static async _getTokenFromTokenUrl( tokenUrl ) {
 		let { data, statusCode } = await RequestHelpers.get( tokenUrl, {} );
 
-		if ( statusCode >= 400 ) {
+		if ( statusCode >= 400 && statusCode < 500 ) {
 			const response = JSON.parse( data );
-			throw new Error( response );
+
+			throw new Error( `Fetching token from url error: "${response.message}"` );
+		}
+
+		if ( statusCode >= 500 ) {
+			throw new Error( 'Token URL is invalid.' );
 		}
 
 		return data.toString();

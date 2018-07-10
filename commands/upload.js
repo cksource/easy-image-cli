@@ -16,7 +16,7 @@ const ALLOWED_IMAGES_FORMATS = [ 'png', 'jpeg', 'jpg', 'bmp', 'tiff', 'webp', 'g
 const MAX_IMAGE_SIZE = 100000000;
 
 /**
- * CLI method which allows to upload images to easy-image
+ * CLI method which allows to upload images to the Easy Image service in the cloud.
  */
 class UploadCommand {
 	/**
@@ -68,20 +68,20 @@ class UploadCommand {
 		this._output = output;
 
 		if ( !!this._path && !fs.existsSync( this._path ) ) {
-			throw new Error( `Path doesn\'t exist: ${ this._path }` );
+			throw new Error( `The path doesn't exist: ${ this._path }` );
 		}
 
 		if ( !this._tokenUrl && !this._accessKey ) {
-			throw new Error( 'Token or accessKey must be provided.' );
+			throw new Error( `The Token URL or the combination of Environment ID and Secret key must be provided.` );
 		}
 
 		if ( !this._tokenUrl && this._accessKey && !this._environment ) {
-			throw new Error( 'Environment must be provided.' );
+			throw new Error( `The Environment ID must be provided.` );
 		}
 	}
 
 	/**
-	 * Generates list of files and uploads them to easy-image.
+	 * Generates the list of files and uploads them the Easy Image service in the cloud.
 	 *
 	 * @return {Promise.<Object>}
 	 */
@@ -103,7 +103,7 @@ class UploadCommand {
 			if ( _validateImage( file ) ) {
 				return true;
 			} else {
-				errors.push( new Error( `"Not allowed file format or the file is too big." for file "${ file }"` ) );
+				errors.push( new Error( `Invalid file format or the file is too big: ${ file }` ) );
 
 				return false;
 			}
@@ -120,7 +120,7 @@ class UploadCommand {
 				result[ filePath ] = await this._upload( filePath, token, this._uploadUrl );
 				progress.update( index + 1 );
 			} catch ( error ) {
-				errors.push( new Error( `"${ error.message}" for file "${ filePath}"` ) )
+				errors.push( new Error( `${ error.message}: ${ filePath}` ) )
 			}
 		}
 
@@ -134,7 +134,7 @@ class UploadCommand {
 	}
 
 	/**
-	 * Uploads file to easy image.
+	 * Uploads file to the Easy Image service.
 	 *
 	 * @param {String} filePath
 	 * @param {String} token
@@ -157,7 +157,7 @@ class UploadCommand {
 module.exports = UploadCommand;
 
 /**
- * Returns list of all images in directory and subdirectories
+ * Returns the list of all images in directory and subdirectories
  *
  * @param {String} path
  * @param {Array.<String>} [fileList]
@@ -185,7 +185,7 @@ function _scanDirectorySync( path, fileList = [] ) {
 }
 
 /**
- * Returns true if extension of file is supported by easy image and size of the file is less or equal than limit and false if not.
+ * Returns true if the extension of a file is supported by the Easy Image service and the size of a file does not exceed service limits.
  *
  * @param {String} imagePath
  * @return {Boolean}

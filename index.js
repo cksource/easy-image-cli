@@ -13,9 +13,25 @@ const app = require( 'commander' );
 const UploadCommand = require( './commands/upload' );
 
 app.command( 'upload <filePath> <uploadUrl>' )
-	.description( 'Uploads files to system' )
-	.option( '-e, --environment <environment>', 'Environment id' )
-	.option( '-k, --key <key>', 'Access key' )
+	.description( `Uploads images from your drive to the Easy Image service.
+
+  One of the following options must be provided:
+    * Token URL
+    * (or) Environment ID and Access Key.
+
+  The correct values of Environment ID and Access Key can be found in the 
+  CKEditor Ecosystem dashboard: https://dashboard.ckeditor.com. 
+  As a token URL you may use the development token URL, also available in the dashboard.
+
+  Examples:
+
+  easy-image-cli upload ./images/ https://XXX.cke-cs.com/easyimage/upload/ -t http://example.com/token/ --output images.json
+
+  OR
+
+  easy-image-cli upload ./images/ https://XXX.cke-cs.com/easyimage/upload/ -e FsBgSO -k dGaXSA9uTlAs --output images.json` )
+	.option( '-e, --environment <environment>', 'Environment ID' )
+	.option( '-k, --key <key>', 'Secret key' )
 	.option( '-t, --tokenUrl <url>', 'Token URL' )
 	.option( '-o, --output <path>', 'Path to the file where result should be saved' )
 	.action( async ( filePath, uploadUrl, cmd ) => {
@@ -23,7 +39,12 @@ app.command( 'upload <filePath> <uploadUrl>' )
 			const upload = new UploadCommand( filePath, uploadUrl, cmd );
 
 			const { result, errors } = await upload.execute();
-			_printDataToStdOut( result, '========= Addresses ========= \n' );
+			if ( Object.keys( result ).length === 0 ) {
+				process.stdout.write( 'No images were uploaded.\n' );
+			}
+			else {
+				_printDataToStdOut( result, '========= The URLs to uploaded images ========= \n' );
+			}
 
 			for ( const error of errors ) {
 				_printError( error.message );
